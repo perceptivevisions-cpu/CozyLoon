@@ -18,18 +18,20 @@ body{display:flex;justify-content:center}
 .contactTap{display:inline-block;cursor:pointer}
 .avatarWrap{position:relative;width:58px;height:58px;margin:0 auto 5px}
 .pulseRing{
-  position:absolute;
-  inset:-2px;
-  border-radius:50%;
-  border:3.5px solid rgba(0,122,255,.72);
-  z-index:3;
-  pointer-events:none;
-  box-sizing:border-box;
-  animation:sharonPulse 3.6s ease-in-out 1.2s infinite;
+  position:absolute !important;
+  inset:-1px !important;
+  border-radius:50% !important;
+  border:4px solid #007AFF !important;
+  z-index:3 !important;
+  pointer-events:none !important;
+  box-sizing:border-box !important;
+  animation:sharonPulse 2.8s ease-in-out .8s infinite !important;
 }
 @keyframes sharonPulse{
-  0%,100% {transform:scale(1); opacity:.42; border-color:rgba(0,122,255,.58)}
-  50%     {transform:scale(1.035); opacity:.88; border-color:rgba(0,122,255,.90)}
+  0%,100% {transform:scale(1); opacity:.46;}
+  50%     {transform:scale(1.055); opacity:1;}
+}
+50%     {transform:scale(1.035); opacity:.88; border-color:rgba(0,122,255,.90)}
 }
 28%  {transform:scale(1.02); opacity:.95; border-color:rgba(10,132,255,.95)}
   65%  {transform:scale(1.13); opacity:.42; border-color:rgba(10,132,255,.48)}
@@ -91,7 +93,7 @@ body{display:flex;justify-content:center}
 .profileModal{background:#f2f2f7;color:#111;overflow:auto}
 .profileTop{position:relative;padding:calc(env(safe-area-inset-top) + 20px) 18px 20px;text-align:center;background:#f7f7f9;border-bottom:1px solid #d7d7dc}
 .profileBack{position:absolute;left:16px;top:calc(env(safe-area-inset-top) + 16px);color:var(--blue);font-size:34px;cursor:pointer}
-.profilePhoto{width:138px;height:138px;border-radius:50%;object-fit:cover;display:block;margin:auto;cursor:pointer}
+.profilePhoto{width:138px;height:138px;border-radius:50%;object-fit:cover;display:block;margin:auto;cursor:pointer;border:4px solid #007AFF}
 .profileName{font-size:30px;font-weight:700;margin-top:9px}
 .profileNum{font-size:17px;color:#666;margin-top:2px}
 .profileLoc{font-size:16px;color:#777;margin-top:2px}
@@ -164,9 +166,53 @@ body{display:flex;justify-content:center}
   animation:sharonPulse 3.6s ease-in-out 1.2s infinite !important;
 }
 
+
+.entryGate{
+  position:fixed; inset:0; z-index:200;
+  background:#050506; color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  padding:32px 24px;
+}
+.entryGate.hidden{display:none}
+.entryInner{width:min(100%,390px);text-align:left}
+.entryEyebrow{
+  font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+  color:#7e7e84; margin-bottom:24px;
+}
+.entryText{
+  font-size:24px; line-height:1.28; font-weight:620;
+  letter-spacing:-.015em;
+}
+.entryText .quiet{color:#aaaab0;font-weight:500}
+.entryButton{
+  margin-top:34px; width:100%;
+  border:0; border-radius:15px;
+  padding:16px 18px;
+  background:#f2f2f7; color:#111;
+  font-size:16px; font-weight:800; letter-spacing:.06em;
+}
+.entryHint{
+  margin-top:13px; text-align:center;
+  color:#6f7076; font-size:12px; line-height:1.4;
+}
+
 </style>
 </head>
 <body>
+
+<div class="entryGate" id="entryGate">
+  <div class="entryInner">
+    <div class="entryEyebrow">A message was left here</div>
+    <div class="entryText">
+      Someone who stayed at the Cozy Loon before you wanted the next guest to find this.
+      <br><br>
+      <span class="quiet">Turn your sound on. Then open the thread.</span>
+    </div>
+    <button class="entryButton" id="enterGame">OPEN SHARON'S THREAD</button>
+    <div class="entryHint">For the best experience, keep your phone upright.</div>
+  </div>
+</div>
+
 <div class="app">
   <header class="header">
     <label class="contactTap" for="profileToggle">
@@ -349,61 +395,69 @@ body{display:flex;justify-content:center}
 </div>
 
 
+
 <script>
 (function(){
+  const gate = document.getElementById('entryGate');
+  const enter = document.getElementById('enterGame');
   let ctx = null;
-  let unlocked = false;
+  let gameStartedAt = null;
 
   function ensureAudio(){
     try {
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
       if (ctx.state === 'suspended') ctx.resume();
-      unlocked = true;
     } catch(e) {}
   }
 
-  // Any natural interaction unlocks audio without adding a game-y "enable sound" button.
-  ['touchstart','pointerdown','click'].forEach(evt => {
-    document.addEventListener(evt, ensureAudio, {once:true, passive:true});
-  });
-
   function messageTone(){
-    if (!unlocked || !ctx) return;
-    const now = ctx.currentTime;
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended') ctx.resume();
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.065, now + 0.008);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      master.connect(ctx.destination);
 
-    // Original two-note, soft glassy UI tone.
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.055, now + 0.008);
-    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    master.connect(ctx.destination);
-
-    const o1 = ctx.createOscillator();
-    const o2 = ctx.createOscillator();
-    o1.type = 'sine';
-    o2.type = 'sine';
-    o1.frequency.setValueAtTime(880, now);
-    o2.frequency.setValueAtTime(1320, now + 0.035);
-
-    const g1 = ctx.createGain();
-    const g2 = ctx.createGain();
-    g1.gain.value = 0.55;
-    g2.gain.value = 0.26;
-
-    o1.connect(g1); g1.connect(master);
-    o2.connect(g2); g2.connect(master);
-
-    o1.start(now); o1.stop(now + 0.16);
-    o2.start(now + 0.035); o2.stop(now + 0.20);
-
-    // Small haptic where a browser supports it; ignored on iPhone Safari if unsupported.
-    try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
+      const o1 = ctx.createOscillator();
+      const o2 = ctx.createOscillator();
+      const g1 = ctx.createGain();
+      const g2 = ctx.createGain();
+      o1.type='sine'; o2.type='sine';
+      o1.frequency.setValueAtTime(820, now);
+      o2.frequency.setValueAtTime(1230, now + .035);
+      g1.gain.value=.52; g2.gain.value=.24;
+      o1.connect(g1); g1.connect(master);
+      o2.connect(g2); g2.connect(master);
+      o1.start(now); o1.stop(now+.16);
+      o2.start(now+.035); o2.stop(now+.20);
+      if (navigator.vibrate) navigator.vibrate(12);
+    } catch(e) {}
   }
 
-  // Schedule only the later, mystery-bearing messages.
-  document.querySelectorAll('.soundMsg').forEach(el => {
-    const seconds = parseFloat(el.dataset.soundAt || '0');
-    setTimeout(messageTone, Math.max(0, seconds * 1000));
+  function scheduleMessageSounds(){
+    document.querySelectorAll('.soundMsg').forEach(el=>{
+      const seconds=parseFloat(el.dataset.soundAt||'0');
+      setTimeout(messageTone, Math.max(0, seconds*1000));
+    });
+  }
+
+  async function tryFullscreen(){
+    try{
+      const el=document.documentElement;
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }catch(e){}
+  }
+
+  enter.addEventListener('click', async function(){
+    ensureAudio();
+    await tryFullscreen();
+    gate.classList.add('hidden');
+    gameStartedAt=Date.now();
+    scheduleMessageSounds();
   });
 })();
 </script>
